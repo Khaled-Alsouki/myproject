@@ -11,13 +11,26 @@ from sklearn.metrics import mean_squared_error, r2_score
 st.title(" California Housing Dashboard")
 st.sidebar.header("Configuration")
 
-# Load data
+
 @st.cache_data
 def load_data():
     housing = fetch_california_housing(as_frame=True)
     return housing.frame
 
 df = load_data()
+
+
+@st.cache_data
+def train_model(X_train, y_train, model_type, alpha):
+    if model_type == "Linear":
+        model = LinearRegression()
+    elif model_type == "Ridge":
+        model = Ridge(alpha=alpha)
+    else:
+        model = Lasso(alpha=alpha)
+    model.fit(X_train, y_train)
+    return model
+
 
 # Display data
 if st.checkbox("Show raw data"):
@@ -36,14 +49,10 @@ X = df.drop('MedHouseVal', axis=1)
 y = df['MedHouseVal']
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-if model_type == "Linear":
-    model = LinearRegression()
-elif model_type == "Ridge":
-    model = Ridge(alpha=alpha)
-else:
-    model = Lasso(alpha=alpha)
 
-model.fit(X_train, y_train)
+model = train_model(X_train, y_train, model_type, alpha)
+
+
 y_pred = model.predict(X_test)
 
 # Display results
