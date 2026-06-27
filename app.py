@@ -11,16 +11,17 @@ from sklearn.metrics import mean_squared_error, r2_score
 st.title(" California Housing Dashboard")
 st.sidebar.header("Configuration")
 
-
-@st.cache_data
+@st.cache_data(persist=True)
 def load_data():
     housing = fetch_california_housing(as_frame=True)
-    return housing.frame
+    df = housing.frame
+    # Take only 1000 samples to reduce memory usage (1GB limit on free tier)
+    return df.sample(1000, random_state=42)
 
 df = load_data()
 
 
-@st.cache_data
+@st.cache_resource
 def train_model(X_train, y_train, model_type, alpha):
     if model_type == "Linear":
         model = LinearRegression()
@@ -32,11 +33,10 @@ def train_model(X_train, y_train, model_type, alpha):
     return model
 
 
-# Display data
 if st.checkbox("Show raw data"):
     st.write(df.head(100))
 
-# Select model
+
 model_type = st.sidebar.selectbox(
     "Choose Regression Model",
     ["Linear", "Ridge", "Lasso"]
@@ -44,25 +44,24 @@ model_type = st.sidebar.selectbox(
 
 alpha = st.sidebar.slider("Alpha (for Ridge/Lasso)", 0.01, 10.0, 1.0)
 
-# Train model
+
 X = df.drop('MedHouseVal', axis=1)
 y = df['MedHouseVal']
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-
+# Train the model using cached function
 model = train_model(X_train, y_train, model_type, alpha)
 
 
 y_pred = model.predict(X_test)
 
-# Display results
 st.subheader(f" {model_type} Regression Results")
 col1, col2, col3 = st.columns(3)
 col1.metric("RMSE", f"{np.sqrt(mean_squared_error(y_test, y_pred)):.4f}")
 col2.metric("R²", f"{r2_score(y_test, y_pred):.4f}")
 col3.metric("Training Samples", len(X_train))
 
-# Plot results
+
 fig, ax = plt.subplots(figsize=(10, 6))
 ax.scatter(y_test, y_pred, alpha=0.5)
 ax.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--')
@@ -71,7 +70,7 @@ ax.set_ylabel("Predicted Values")
 ax.set_title(f"{model_type} Regression: Actual vs Predicted")
 st.pyplot(fig)
 
-# Display feature importance
+
 if model_type == "Linear":
     st.subheader("Feature Importance")
     importance = pd.DataFrame({
